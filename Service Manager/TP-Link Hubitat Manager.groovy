@@ -104,7 +104,7 @@ def startPage() {
             }
 		}
         
-		section("Page Instructions", hideable: true, hidden: false) {
+		section("Page Instructions", hideable: true, hidden: true) {
             paragraph page1Text
             paragraph page2Text
             paragraph page3Text
@@ -133,7 +133,10 @@ def startPage() {
 			}
         }
         
-        section("Application Version: ${appVersion()}") {}
+        section("Copyright Dave Gutheinz and Anthony Rameriz", hideable: true, hidden: false) {
+            paragraph "Application Version: ${appVersion()}"
+            paragraph "Minimum Guaranteed Driver Version: ${driverVersion()}"
+		}
 	}
 }
 
@@ -169,7 +172,7 @@ def welcomePage() {
             }
 		}
         
-		section("Page Instructions", hideable: true, hidden: false) {
+		section("Page Instructions", hideable: true, hidden: true) {
             paragraph page1Text
             paragraph page2Text
             paragraph page3Text
@@ -230,11 +233,11 @@ def updateData() {
 		default:
             break
 	}
-    state.updateType = null
     welcomePage()
 }
 
 def addDevicesPage() {
+    state.updateType = "addDevices"
     def page1Text = ""
     def page2Text = ""
     def page3Text = ""
@@ -295,7 +298,7 @@ def addDevicesPage() {
             }
 		}
         
-		section("Page Instructions", hideable: true, hidden: false) {
+		section("Page Instructions", hideable: true, hidden: true) {
             paragraph page1Text
             paragraph page2Text
             paragraph page3Text
@@ -304,7 +307,6 @@ def addDevicesPage() {
             paragraph page6Text
 		}
         
-        state.updateType = "addDevices"
  		section("Select Devices to Add (${newDevices.size() ?: 0} found)", hideable: true, hidden: false) {
 			input ("selectedDevices", "enum", 
                    required: false, 
@@ -332,6 +334,8 @@ def addDevices() {
 	tpLinkModel << ["HS200" : "TP-Link/Kasa Plug-Switch"]				//	HS200
 	tpLinkModel << ["HS210" : "TP-Link/Kasa Plug-Switch"]				//	HS210
 	tpLinkModel << ["KP100" : "TP-Link/Kasa Plug-Switch"]				//	KP100
+	//	Miltiple Outlet Plug
+	tpLinkModel << ["HS107" : "TP-Link/Kasa Multi-Plug"]				//	HS107
 	//	Dimming Switch Devices
 	tpLinkModel << ["HS220" : "TP-Link/Kasa Dimming Switch"]			//	HS220
 	//	Energy Monitor Plugs
@@ -370,7 +374,7 @@ def addDevices() {
                             "installType" : installType,
                         	"deviceId" : device.value.deviceId, 
                             "appServerUrl" : device.value.appServerUrl,
-                            "deviceIP" : bridgeIp,
+                            "deviceIP" : device.value.deviceIP,
                             "gatewayIP" : device.value.gatewayIP
                         ]
                     ]
@@ -385,6 +389,7 @@ def addDevices() {
 }
 
 def removeDevicesPage() {
+    state.updateType = "removeDevices"
 	def page1Text = ""
 	def page2Text = ""
 	def page3Text = ""
@@ -425,7 +430,7 @@ def removeDevicesPage() {
             }
 		}
         
-		section("Page Instructions", hideable: true, hidden: false) {
+		section("Page Instructions", hideable: true, hidden: true) {
             paragraph page1Text
             paragraph page2Text
             paragraph page3Text
@@ -433,9 +438,7 @@ def removeDevicesPage() {
             paragraph page5Text
 		}
         
-        state.updateType = "removeDevices"
 		section("Select Devices to Remove (${oldDevices.size() ?: 0} found)", hideable: true, hidden: false) {
-//			input ("selectedRemoveDevices", "enum", 
 			input ("selectedDevices", "enum", 
                    required: false, 
                    multiple: true, 
@@ -486,7 +489,7 @@ def kasaAuthenticationPage() {
             }
 		}
         
-		section("Page Instructions", hideable: true, hidden: false) {
+		section("Page Instructions", hideable: true, hidden: true) {
             paragraph page1Text
             paragraph page2Text
             paragraph page3Text
@@ -636,7 +639,7 @@ def hubEnterIpPage() {
             }
 		}
         
-		section("Page Instructions", hideable: true, hidden: false) {
+		section("Page Instructions", hideable: true, hidden: true) {
             paragraph page1Text
             paragraph page2Text
             paragraph page3Text
@@ -692,6 +695,7 @@ def hubExtractDeviceData(response) {
         device["deviceNetworkId"] = it.deviceMac
 		device["alias"] = it.alias
 		device["deviceModel"] = it.deviceModel
+		device["deviceId"] = it.deviceId
         device["deviceIP"] = it.deviceIP
 		devices << ["${it.deviceMac}" : device]
 		def isChild = getChildDevice(it.deviceMac)

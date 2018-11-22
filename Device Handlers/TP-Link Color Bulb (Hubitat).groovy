@@ -70,7 +70,6 @@ metadata {
 	        input ("hue_Scale", "enum", title: "High or Low Res Hue", options: hueScale)
         }
         input ("transition_Time", "enum", title: "Transition time", options: transTime)
-		input ("install_Type", "enum", title: "Installation Type", options: ["Node Applet", "Kasa Account"])
 		input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
 		input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
 	}
@@ -81,6 +80,10 @@ def installed() {
 	log.info "Installing ${device.label}..."
     setLightTransTime("1000")
     setHueScale("highRez")
+	if(getDataValue("installType") == null) {
+		setInstallType("Node Applet")
+	}
+	update()
 }
 
 def ping() {
@@ -98,7 +101,6 @@ def updated() {
     if (transition_Time) { setLightTransTime(transition_Time) }
     if (device_IP) { setDeviceIP(device_IP) }
     if (gateway_IP) { setGatewayIP(gateway_IP) }
-    if (install_Type) { setInstallType(install_Type) }
     if (hue_Scale) { setHueScale(hue_Scale) }
 	runIn(2, refresh)
 }
@@ -172,8 +174,7 @@ def setSaturation(saturation) {
 }
 
 def setColor(Map color) {
-//    def hueScale = getDataValue("hueScale")
-    if (color == null) color = [hue: state.lastHue, saturation: state.lastSaturation]
+	if (color == null) color = [hue: state.lastHue, saturation: state.lastSaturation]
     def hue = color.hue.toInteger()
     if (getDataValue("hueScale") == "lowRez") { hue = (hue * 3.6).toInteger() }
 	def saturation = color.saturation as int

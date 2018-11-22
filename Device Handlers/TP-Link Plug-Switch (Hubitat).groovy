@@ -47,7 +47,6 @@ metadata {
 	}
 
     preferences {
-		input ("install_Type", "enum", title: "Installation Type", options: ["Node Applet", "Kasa Account"])
 		input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
 		input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
 	}
@@ -56,6 +55,10 @@ metadata {
 //	===== Update when installed or setting changed =====
 def installed() {
 	log.info "Installing ${device.label}..."
+	if(getDataValue("installType") == null) {
+		setInstallType("Node Applet")
+	}
+	update()
 }
 
 def ping() {
@@ -72,7 +75,6 @@ def updated() {
     runEvery5Minutes(refresh)
     if (device_IP) { setDeviceIP(device_IP) }
     if (gateway_IP) { setGatewayIP(gateway_IP) }
-    if (install_Type) { setInstallType(install_Type) }
 	runIn(2, refresh)
 }
 

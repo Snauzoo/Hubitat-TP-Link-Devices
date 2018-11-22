@@ -57,6 +57,7 @@ def installed() {
 	if(getDataValue("installType") == null) {
 		updateDataValue("installType", "Node Applet")
 	}
+	update()
 }
 
 def ping() {
@@ -105,9 +106,10 @@ def refreshResponse(cmdResponse){
 //	Requires parse update to new response format for multi-switches.
 	def children = cmdResponse.system.get_sysinfo.children
 	def onOff
-	def pludId = "${getDataValue("deviceId")}00"
+	def plugId = "${getDataValue("deviceId")}00"
+log.error plugId
 	children.each {
-		if (it.id == getDataValue("plugID")) {
+		if (it.id == plugId) {
 			log.error it.id
 			log.error it.state
 			if (it.state == 1) {
@@ -117,7 +119,7 @@ def refreshResponse(cmdResponse){
 			}
 		}
 	}
-	sendEvent(name: "switch", value: "onOff")
+	sendEvent(name: "switch", value: onOff)
 	log.info "${device.name} ${device.label}: Power: ${onOff}"
 }
 //	===== Send the Command =====

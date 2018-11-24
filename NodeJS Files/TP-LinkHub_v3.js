@@ -1,5 +1,5 @@
 /*
-TP-LinkHub - Version 3.0
+TP-LinkHub - Version 3.0.2
 
 This java script uses node.js functionality to provide a hub between a Smart Hub and TP-Link devices.  It works with the the Smart Hup applications .
 01-31-2018	Release of Version 2 Hub
@@ -15,7 +15,7 @@ if (process.version == "v6.0.0-pre") {
 }
 
 //---- Program set up and global variables -------------------------
-var logFile = "yes"	//	Set to no to disable error.log file.
+var logFile = "no"	//	Set to no to disable error.log file.
 var bridgePort = 8082	//	Synched with Device Handlers.
 var hubPort = 8082	//	Synched with Device Handlers.
 var http = require('http')
@@ -42,7 +42,7 @@ var tplinkDeviceList = []
 
 //---- Start the HTTP Server Listening to Smart Hub --------------
 server.listen(hubPort)
-console.log("TP-Link Hub Application Console Log")
+console.log("TP-Link Hub Application Console Log V3.0.2")
 logResponse("\n\r" + new Date() + "\rTP-Link Hub Error Log")
 
 //---- Command interface to Smart Things ---------------------------
@@ -105,6 +105,7 @@ function discoverTPLinkDevices() {
 		tplinkDevice['deviceMac'] = tplinkDNI
 		tplinkDevice['deviceIP'] = rinfo.address
 		tplinkDevice['deviceModel'] = device.model
+		tplinkDevice['deviceId'] = device.deviceId
 		tplinkDevice['alias'] = device.alias
 		tplinkDevice['gatewayIP'] = bridgeIP
 		tplinkDeviceList.push(tplinkDevice)
@@ -114,9 +115,13 @@ function discoverTPLinkDevices() {
 	})
 	var msgBuf = UdpEncrypt('{"system":{"get_sysinfo":{}}}')
 	socket.send(msgBuf, 0, msgBuf.length, pollPort, '255.255.255.255')
-	setTimeout(closeSocket, 4000)
+	setTimeout(closeSocket, 6000)
 	function closeSocket() {
-		socket.close()
+		try {
+			socket.close()
+		} catch (e) {
+			console.log("Socket Already Closed")
+		}
 	}
 }
 

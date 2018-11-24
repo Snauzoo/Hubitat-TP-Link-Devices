@@ -10,7 +10,8 @@ b.  Node Applet. Smart Application integration via a home wifi Node.JS bridge (p
 c.  Manual Node Installation. Traditional Hub installation. Does not use a Smart Application.
 
 # Updates
-11-24-2018.  Devices added:  HS107 and HS300.  One open issue.  For Node Applet (Hub) installation, reading of individual plug alias was not readily feasible.  User will have to change in Hubitat Environment Devices tab after installation.
+11-24-2018.  Devices added:  HS107 and HS300 (TP-Link Multi-Plug).  One open issue.  For Node Applet (Hub) installation, reading of individual plug alias was not readily feasible.  User will have to change in Hubitat Environment Devices tab after installation.
+
 11-24-2018.  Node.js file update.  Fixed error in device polling to preclude program crash during a socket close action.
 
 # SmartApplication:

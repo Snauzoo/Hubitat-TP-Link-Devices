@@ -79,7 +79,7 @@ metadata {
 def installed() {
 	log.info "Installing ${device.label}..."
     setLightTransTime("1000")
-    setHueScale("highRez")
+    setHueScale("lowRez")
 	if(getDataValue("installType") == null) {
 		setInstallType("Node Applet")
 	}

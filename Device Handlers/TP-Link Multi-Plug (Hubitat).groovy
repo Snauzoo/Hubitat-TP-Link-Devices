@@ -26,8 +26,9 @@ TP-Link devices; primarily various users on GitHub.com.
 			a.  Single Drivers for manual Hub Installation, 
 				automated Hub Installation, and for Kasa
 				Account based installation.
-           b.	Update to match the Hubitat Driver input - 
+			b.	Update to match the Hubitat Driver input - 
 				output paradigm.
+11.24.2018	Created Multi-Plug Device Handler.
 //	===== Device Type Identifier ===========================*/
 	def driverVer() { return "3.5" }
 	def deviceType() { return "Multi-Plug" }
@@ -42,13 +43,13 @@ metadata {
 		capability "Refresh"
 	}
 
-if (getDataValue("installType") != "Kasa Account")  {
-    preferences {
-		input ("device_Id", "text", title: "The Device ID Manual Installation")
-		input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
-		input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
+	if (getDataValue("installType") != "Kasa Account")  {
+	    preferences {
+			input ("plug_No", "text", title: "Number of the plug (00, 01, 02, etc)")
+			input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
+			input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
+		}
 	}
-}
 }
 
 //	===== Update when installed or setting changed =====
@@ -65,17 +66,24 @@ def ping() {
 }
 
 def update() {
-    runIn(2, updated)
+    runIn(5, updated)
 }
 
 def updated() {
 	log.info "Updating ${device.label}..."
 	unschedule()
     runEvery5Minutes(refresh)
-    if (device_Id) { setDeviceId(device_Id) }
-    if (device_IP) { setDeviceIP(device_IP) }
-    if (gateway_IP) { setGatewayIP(gateway_IP) }
+    if (device_IP) { updateDataValue("deviceIP", device_IP) }
+    if (gateway_IP) { updateDataValue("gatewayIP", gateway_IP) }
+	if (plug_No) { sendCmdtoServer('{"system" :{"get_sysinfo" :{}}}', "deviceCommand", "parsePlugId") }
 	runIn(5, refresh)
+}
+
+def parsePlugId(cmdResponse) {
+	def deviceData = cmdResponse.system.get_sysinfo
+	def plugId = "${deviceData.deviceId}${plug_No}"
+	updateDataValue("plugId", plugId)
+	log.info "${device.name} ${device.label}: Plug ID set to ${plugId}"
 }
 
 void uninstalled() {
@@ -91,11 +99,15 @@ void uninstalled() {
 
 //	===== Basic Plug Control/Status =====
 def on() {
-	sendCmdtoServer('{"system" :{"set_relay_state" :{"state" : 1}}}', "deviceCommand", "commandResponse")
+	def plugId = getDataValue("plugId")
+	sendCmdtoServer("""{"context":{"child_ids":["${plugId}"]},"system":{"set_relay_state":{"state":1}}}""",
+					"deviceCommand", "commandResponse")
 }
 
 def off() {
-	sendCmdtoServer('{"system" :{"set_relay_state" :{"state" : 0}}}', "deviceCommand", "commandResponse")
+	def plugId = getDataValue("plugId")
+	sendCmdtoServer("""{"context":{"child_ids":["${plugId}"]},"system":{"set_relay_state":{"state":0}}}""",
+					"deviceCommand", "commandResponse")
 }
 
 def refresh(){
@@ -106,12 +118,9 @@ def refreshResponse(cmdResponse){
 //	Requires parse update to new response format for multi-switches.
 	def children = cmdResponse.system.get_sysinfo.children
 	def onOff
-	def plugId = "${getDataValue("deviceId")}00"
-log.error plugId
+	def plugId = getDataValue("plugId")
 	children.each {
 		if (it.id == plugId) {
-			log.error it.id
-			log.error it.state
 			if (it.state == 1) {
 				onOff = "on"
 			} else {
@@ -122,6 +131,7 @@ log.error plugId
 	sendEvent(name: "switch", value: onOff)
 	log.info "${device.name} ${device.label}: Power: ${onOff}"
 }
+
 //	===== Send the Command =====
 private sendCmdtoServer(command, hubCommand, action) {
 	try {
@@ -193,6 +203,9 @@ def actionDirector(action, cmdResponse) {
 		case "refreshResponse" :
 			refreshResponse(cmdResponse)
 			break
+		case "parsePlugId" :
+			parsePlugId(cmdResponse)
+			break
 		default:
 			log.info "Interface Error. See SmartApp and Device error message."
 	}
@@ -204,11 +217,6 @@ def setAppServerUrl(newAppServerUrl) {
 	log.info "Updated appServerUrl for ${device.name} ${device.label}"
 }
 
-def setDeviceId(deviceId) { 
-	updateDataValue("deviceId", deviceId) 	//	device Id for manual installation
-	log.info "${device.name} ${device.label} device Id set to ${deviceId}"
-}
-
 def setDeviceIP(deviceIP) { 
 	updateDataValue("deviceIP", deviceIP) 	//	gatewayIP must be in form NNN.NNN.N.NNN
 	log.info "${device.name} ${device.label} device IP set to ${deviceIP}"
@@ -217,11 +225,6 @@ def setDeviceIP(deviceIP) {
 def setGatewayIP(gatewayIP) { 
 	updateDataValue("gatewayIP", gatewayIP) 	//	gatewayIP must be in form NNN.NNN.N.NNN
 	log.info "${device.name} ${device.label} gateway IP set to ${gatewayIP}"
-}
-
-def setPlugID(plugID) { 
-	updateDataValue("plugID", plugID) 	//	plugID (deviceID plus 2 digit plug number)
-	log.info "${device.name} ${device.label} plug ID set to ${plugID}"
 }
 
 def setInstallType(installType) {

@@ -763,9 +763,10 @@ def hubExtractDeviceData(response) {
 		    device["deviceIP"] = it.deviceIP
 			devices << ["${it.deviceMac}" : device]
 			def isChild = getChildDevice(it.deviceMac)
-			if (isChild) {
-				isChild.setAppServerUrl(it.appServerUrl)
-			}
+				if (isChild) {
+		            isChild.setDeviceIP(it.deviceIP)
+		            isChild.setGatewayIP(bridgeIp)
+				}
 			log.info "Device ${it.alias} added to devices array"
 		}
 	}

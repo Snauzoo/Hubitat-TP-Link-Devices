@@ -286,7 +286,7 @@ def addDevicesPage() {
 	return dynamicPage(name:"addDevicesPage",
 		title:"Add Kasa Devices",
 		nextPage:"",
-		refreshInterval: 5,
+		refreshInterval: 15,
         multiple: true,
 		install: true) {
 		section("") {
@@ -312,7 +312,7 @@ def addDevicesPage() {
 			input ("selectedDevices", "enum", 
                    required: false, 
                    multiple: true, 
-		  		   refreshInterval: 5,
+		  		   refreshInterval: 15,
                    submitOnChange: true,
                    title: null,
                    description: "Add Devices",
@@ -470,6 +470,28 @@ def removeDevices() {
 	}
 }
 
+def updateDevices(deviceNetworkId, alias, deviceModel, plugId, deviceId, appServerUrl, deviceIP) {
+	def devices = state.devices
+	def device = [:]
+	device["deviceNetworkId"] = deviceNetworkId
+	device["alias"] = alias
+	device["deviceModel"] = deviceModel
+	device["plugId"] = plugId
+	device["deviceId"] = deviceId
+	device["appServerUrl"] = appServerUrl
+	device["deviceIP"] = deviceIP
+	devices << ["${deviceNetworkId}" : device]
+	def isChild = getChildDevice(deviceNetworkId)
+	if (isChild) {
+    	if (installType == "Kasa Account") {
+			isChild.setAppServerUrl(appServerUrl)
+        } else {
+			isChild.setDeviceIP(deviceIP)
+			isChild.setGatewayIP(bridgeIp)
+		}
+    }
+}
+
 //	===== Kasa Account Methods ===========
 def kasaAuthenticationPage() {
 	def page1Text = ""
@@ -593,9 +615,10 @@ def kasaGetDevices() {
 		}
 	}
 	state.devices = [:]
-	def devices = state.devices
 	currentDevices.each {
 		def deviceModel = it.deviceModel.substring(0,5)
+        def plugId = ""
+        def deviceIP = ""
 		if (deviceModel == "HS107" || deviceModel == "HS300") {
 			def totalPlugs = 2
 			if (deviceModel == "HS300") {
@@ -612,34 +635,10 @@ def kasaGetDevices() {
 						alias = it.alias
 					}
 				}
-				def device = [:]
-				device["deviceNetworkId"] = deviceNetworkId
-				device["alias"] = alias
-				device["deviceModel"] = deviceModel
-				device["plugId"] = plugId
-				device["deviceId"] = it.deviceId
-				device["appServerUrl"] = it.appServerUrl
-				devices << ["${deviceNetworkId}" : device]
-				def isChild = getChildDevice(it.deviceMac)
-				if (isChild) {
-					isChild.setAppServerUrl(it.appServerUrl)
-				}
-				log.info "Device ${it.alias} added to devices array"
+                updateDevices(deviceNetworkId, alias, deviceModel, plugId, it.deviceId, it.appServerUrl, deviceIP)
 			}
 		} else {
-			def device = [:]
-			device["deviceNetworkId"] = it.deviceMac
-			device["alias"] = it.alias
-			device["deviceModel"] = deviceModel
-			device["deviceId"] = it.deviceId
-			device["plugId"] = ""
-			device["appServerUrl"] = it.appServerUrl
-			devices << ["${it.deviceMac}" : device]
-			def isChild = getChildDevice(it.deviceMac)
-			if (isChild) {
-				isChild.setAppServerUrl(it.appServerUrl)
-			}
-			log.info "Device ${it.alias} added to devices array"
+            updateDevices(it.deviceMac, it.alias, deviceModel, plugId, it.deviceId, it.appServerUrl, deviceIP)
 		}
 	}
 }
@@ -726,8 +725,9 @@ def hubExtractDeviceData(response) {
     	return
     }
 	state.devices = [:]
-	def devices = state.devices
 	currentDevices.each {
+	    def plugId = ""
+	    def appServerUrl = ""
 		def deviceModel = it.deviceModel.substring(0,5)
 		if (deviceModel == "HS107" || deviceModel == "HS300") {
 			def totalPlugs = 2
@@ -738,36 +738,10 @@ def hubExtractDeviceData(response) {
 				def deviceNetworkId = "${it.deviceMac}_0${i}"
 				def alias = "temp_0${i}"		//	Temporary Device Alias
 				plugId = "${it.deviceId}0${i}"
-				def device = [:]
-				device["deviceNetworkId"] = deviceNetworkId
-				device["alias"] = alias
-				device["deviceModel"] = deviceModel
-				device["deviceId"] = it.deviceId
-				device["plugId"] = plugId
-		        device["deviceIP"] = it.deviceIP
-				devices << ["${deviceNetworkId}" : device]
-				def isChild = getChildDevice(it.deviceMac)
-				if (isChild) {
-		            isChild.setDeviceIP(it.deviceIP)
-		            isChild.setGatewayIP(bridgeIp)
-				}
-				log.info "Device ${it.alias} added to devices array"
+                updateDevices(deviceNetworkId, alias, deviceModel, plugId, it.deviceId, appServerUrl, it.deviceIP)
 			}
 		} else {
-			def device = [:]
-			device["deviceNetworkId"] = it.deviceMac
-			device["alias"] = it.alias
-			device["deviceModel"] = deviceModel
-			device["deviceId"] = it.deviceId
-			device["plugId"] = ""
-		    device["deviceIP"] = it.deviceIP
-			devices << ["${it.deviceMac}" : device]
-			def isChild = getChildDevice(it.deviceMac)
-				if (isChild) {
-		            isChild.setDeviceIP(it.deviceIP)
-		            isChild.setGatewayIP(bridgeIp)
-				}
-			log.info "Device ${it.alias} added to devices array"
+            updateDevices(it.deviceMac, it.alias, deviceModel, plugId, it.deviceId, appServerUrl, it.deviceIP)
 		}
 	}
 }

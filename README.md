@@ -9,7 +9,11 @@ b.  Node Applet. Smart Application integration via a home wifi Node.JS bridge (p
 
 c.  Manual Node Installation. Traditional Hub installation. Does not use a Smart Application.
 
-SmartApplication:
+# Updates
+11-24-2018.  Devices added:  HS107 and HS300.  One open issue.  For Node Applet (Hub) installation, reading of individual plug alias was not readily feasible.  User will have to change in Hubitat Environment Devices tab after installation.
+11-24-2018.  Node.js file update.  Fixed error in device polling to preclude program crash during a socket close action.
+
+# SmartApplication:
 
 a.  Supports to Kasa Account and Node.js Applet installation and management.
 
@@ -19,7 +23,7 @@ c.  Node Applet:  Uses a node.js applet on your bridge.  Smart app adds, removes
 
 d.  Manual Installation:  Same as before except you must select prefreence "installType" = "Node Applet".
 
-Device Handlers:
+# Device Handlers:
 
 a. Single device driver per device type for any of the three installation types (Kasa Account, Node Applet, manual).
 

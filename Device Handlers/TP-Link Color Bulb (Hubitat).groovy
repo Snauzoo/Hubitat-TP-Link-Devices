@@ -264,6 +264,7 @@ def setColorTempData(temp){
 def setRgbData(hue){
     def colorName
     hue = hue.toInteger()
+	if (getDataValue("hueScale") == "lowRez") { hue = (hue * 3.6).toInteger() }
     switch (hue.toInteger()){
         case 0..15: colorName = "Red"
             break

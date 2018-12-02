@@ -25,8 +25,13 @@ TP-Link devices; primarily various users on GitHub.com.
 			a.  Single Drivers for manual Hub Installation, 
 				automated Hub Installation, and for Kasa
 				Account based installation.
-           b.	Update to match the Hubitat Driver input - 
+            b.	Update to match the Hubitat Driver input - 
 				output paradigm.
+11.28.18	a.	Fixed color naming for lowRez Hue.
+			b.	Added Level to the color map from the 
+				Device page.
+			c.	Change scale of Transition Time to match
+				the Device page definition.
 //	===== Device Type Identifier ===========================*/
 	def driverVer() { return "3.5" }
 //	def deviceType() { return "Soft White Bulb" }
@@ -53,14 +58,6 @@ metadata {
 		}
 	}
 
-    def transTime = [:]
-    transTime << [500:"500ms"]
-    transTime << [1000:"1s"]
-    transTime << [1500:"1.5s"]
-    transTime << [2000:"2s"]
-    transTime << [5000:"5s"]
-    transTime << [10000:"10s"]
-    
     def hueScale = [:]
     hueScale << ["highRez": "High Resolution (0 - 360)"]
     hueScale << ["lowRez": "Low Resolution (0 - 100)"]
@@ -69,7 +66,7 @@ metadata {
 		if (deviceType() == "Color Bulb") {
 	        input ("hue_Scale", "enum", title: "High or Low Res Hue", options: hueScale)
         }
-        input ("transition_Time", "enum", title: "Transition time", options: transTime)
+        input ("transition_Time", "num", title: "Default Transition time (seconds)")
 		input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
 		input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
 	}
@@ -78,30 +75,28 @@ metadata {
 //	===== Update when installed or setting changed =====
 def installed() {
 	log.info "Installing ${device.label}..."
-    setLightTransTime("1000")
-    setHueScale("highRez")
-	if(getDataValue("installType") == null) {
-		setInstallType("Node Applet")
-	}
-	update
+    setHueScale("lowRez")
+	if(getDataValue("installType") == null) { setInstallType("Node Applet") }
+	updated()
 }
 
 def ping() {
 	refresh()
 }
 
-def update() {
-    runIn(2, updated)
-}
-
 def updated() {
 	log.info "Updating ${device.label}..."
 	unschedule()
     runEvery5Minutes(refresh)
-    if (transition_Time) { setLightTransTime(transition_Time) }
     if (device_IP) { setDeviceIP(device_IP) }
     if (gateway_IP) { setGatewayIP(gateway_IP) }
     if (hue_Scale) { setHueScale(hue_Scale) }
+//	Account for transition time scale change due to Hubitat devices page scale note.
+	if (!transition_Time) { setLightTransTime(0) }
+	def trans_Time = getDataValue("transTime").toInteger()
+	if (transition_Time) { trans_Time = transition_Time.toInteger() }
+	if (trans_Time > 100) { trans_Time = (trans_Time / 1000).toInteger() }
+	setLightTransTime(trans_Time)
 	runIn(2, refresh)
 }
 
@@ -118,12 +113,12 @@ void uninstalled() {
 
 //	===== Basic Bulb Control/Status =====
 def on() {
-	def transTime = getDataValue("transTime")
+	def transTime = 1000*getDataValue("transTime").toInteger()
 	sendCmdtoServer("""{"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"on_off":1,"transition_period":${transTime}}}}""", "deviceCommand", "commandResponse")
 }
 
 def off() {
-	def transTime = getDataValue("transTime")
+	def transTime = 1000*getDataValue("transTime").toInteger()
 	sendCmdtoServer("""{"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"on_off":0,"transition_period":${transTime}}}}""", "deviceCommand", "commandResponse")
 }
 
@@ -138,7 +133,7 @@ def setLevel(percentage, rate) {
 		percentage = 50
 	}
 	percentage = percentage as int
-	rate = rate.toInteger()
+	rate = 1000*rate.toInteger()
 	sendCmdtoServer("""{"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"ignore_default":1,"on_off":1,"brightness":${percentage},"transition_period":${rate}}}}""", "deviceCommand", "commandResponse")
 }
 
@@ -174,8 +169,13 @@ def setSaturation(saturation) {
 }
 
 def setColor(Map color) {
-//    def hueScale = getDataValue("hueScale")
-    if (color == null) color = [hue: state.lastHue, saturation: state.lastSaturation]
+	if (color == null) color = [hue: state.lastHue, saturation: state.lastSaturation, level: device.currentValue("level")]
+	def percentage = 100
+	if (!color.level) { 
+		percentage = device.currentValue("level")
+	} else {
+		percentage = color.level
+	}
     def hue = color.hue.toInteger()
     if (getDataValue("hueScale") == "lowRez") { hue = (hue * 3.6).toInteger() }
 	def saturation = color.saturation as int
@@ -183,7 +183,7 @@ def setColor(Map color) {
         log.error "$device.name $device.label: Entered hue or saturation out of range!"
         return
     }
-	sendCmdtoServer("""{"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"ignore_default":1,"on_off":1,"color_temp":0,"hue":${hue},"saturation":${saturation},"transition_period":${transitionTime}}}}""", "deviceCommand", "commandResponse")
+	sendCmdtoServer("""{"smartlife.iot.smartbulb.lightingservice":{"transition_light_state":{"ignore_default":1,"on_off":1,"brightness":${percentage},"color_temp":0,"hue":${hue},"saturation":${saturation}}}}""", "deviceCommand", "commandResponse")
 }
 
 def refresh(){
@@ -265,6 +265,7 @@ def setColorTempData(temp){
 def setRgbData(hue){
     def colorName
     hue = hue.toInteger()
+	if (getDataValue("hueScale") == "lowRez") { hue = (hue * 3.6).toInteger() }
     switch (hue.toInteger()){
         case 0..15: colorName = "Red"
             break
@@ -384,8 +385,8 @@ def setAppServerUrl(newAppServerUrl) {
 }
 
 def setLightTransTime(newTransTime) {
-	updateDataValue("transTime", newTransTime)
-	log.info "Light Transition Time for ${device.name} ${device.label} set to ${newTransTime} miliseconds"
+	updateDataValue("transTime", "${newTransTime}")
+	log.info "Light Transition Time for ${device.name} ${device.label} set to ${newTransTime} seconds"
 }
 
 def setDeviceIP(deviceIP) { 
@@ -402,6 +403,7 @@ def setInstallType(installType) {
 	updateDataValue("installType", installType)
 	log.info "${device.name} ${device.label} Installation Type set to ${installType}"
 }
+
 def setHueScale(hueScale) {
 	updateDataValue("hueScale", hueScale)
 	log.info "${device.name} ${device.label} Hue Scale set to ${hueScale}"

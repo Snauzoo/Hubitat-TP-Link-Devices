@@ -31,12 +31,13 @@ primarily various users on GitHub.com.
 			d.	Removal will remove all devices.
 11-24-18	Added support for HS107 (tested) and HS300 plugs.
 			Awaiting confirmation on HS300 from user.
+12-02-18	Fixed error causing failure to install.
 =============================================================*/
 
 //	====== Application Information ============================
 	def appLabel() { return "Hubitat TP-Link/Kasa Manager" }
-	def appVersion() { return "3.5" }
-	def driverVersion() { return "3.5" }
+	def appVersion() { return "3.5.02" }
+	def driverVersion() { return "3.5.02" }
 //	===========================================================
 
 definition (
@@ -72,7 +73,7 @@ def setInitialStates() {
 
 //	===== Main Pages =====================
 def startPage() {
-	setInitialStates()
+	setInitialStates()	
     if (state.installed == true) { return welcomePage() }
     def page1Text = ""
 	def page2Text = ""
@@ -143,6 +144,7 @@ def startPage() {
 }
 
 def welcomePage() {
+	state.installed = true
 	def page1Text = ""
 	def page2Text = ""
 	def page3Text = ""
@@ -193,12 +195,8 @@ def welcomePage() {
                     description: "Go to Kasa Login Update"
             }	else {
 				href "hubEnterIpPage", 
-                    title: "Update Gateway IP", 
+					title: "Current Gateway IP = ${bridgeIp}",
                     description: "Update Gateway IP"
-                state.updateType = "deviceIpUpdate"
-                href "updateData", 
-                    title: "Update Device IPs", 
-                    description: "Update Node Device IPs"
 			}
 		}
         
@@ -252,7 +250,6 @@ def addDevicesPage() {
 	    page1Text += "until the Applet returns the device data."
 	    page2Text += "1.  Assure that the node applet is running."
     } else {
-		getToken()
 		kasaGetDevices()
 	 	page1Text += "This page installs the devices through the your Kasa Account. "
 	    page1Text += "On initial installation, an error may be displayed until the "
@@ -278,7 +275,7 @@ def addDevicesPage() {
 	}
 	if (devices == [:]) {
 		errorMsgDev = "Looking for devices.  If this message persists, we have been unable to find " +
-        "TP-Link devices on your wifi.  Check: 1) Hubitat Environment logs, 2) node.js logfile for "
+        "TP-Link devices on your wifi.  Check: 1) Hubitat Environment logs, 2) node.js logfile."
 	} else if (newDevices == [:]) {
 		errorMsgDev = "No new devices to add. Check: 1) Device installed to Kasa properly, " +
         "2) The Hubitat Devices Tab (in case already installed)."
@@ -286,7 +283,7 @@ def addDevicesPage() {
 	return dynamicPage(name:"addDevicesPage",
 		title:"Add Kasa Devices",
 		nextPage:"",
-		refreshInterval: 15,
+		refreshInterval: 20,
         multiple: true,
 		install: true) {
 		section("") {
@@ -312,8 +309,9 @@ def addDevicesPage() {
 			input ("selectedDevices", "enum", 
                    required: false, 
                    multiple: true, 
-		  		   refreshInterval: 15,
-                   submitOnChange: true,
+//		  		   refreshInterval: 5,
+//				   submitOnChange: true,
+                   submitOnChange: false,
                    title: null,
                    description: "Add Devices",
                    options: newDevices)
@@ -361,34 +359,30 @@ def addDevices() {
 	def hub = location.hubs[0]
 	def hubId = hub.id
 	selectedDevices.each { dni ->
-		try {
-			def isChild = getChildDevice(dni)
-			if (!isChild) {
-				def device = state.devices.find { it.value.deviceNetworkId == dni }
-				def deviceModel = device.value.deviceModel
-				addChildDevice(
-                	"davegut", 
-                	tpLinkModel["${deviceModel}"],
-                    device.value.deviceNetworkId,hubId, [
-                    	"label" : device.value.alias,
-                    	"name" : deviceModel,
-                    	"data" : [
-                            "installType" : installType,
-                        	"deviceId" : device.value.deviceId,
-							"plugId": device.value.plugId,
-                            "appServerUrl" : device.value.appServerUrl,
-                            "deviceIP" : device.value.deviceIP,
-                            "gatewayIP" : bridgeIp
-                        ]
+		def isChild = getChildDevice(dni)
+		if (!isChild) {
+			def device = state.devices.find { it.value.deviceNetworkId == dni }
+			def deviceModel = device.value.deviceModel
+			addChildDevice(
+              	"davegut", 
+               	tpLinkModel["${deviceModel}"],
+                device.value.deviceNetworkId,
+				hubId, [
+                  	"label" : device.value.alias,
+                   	"name" : deviceModel,
+                   	"data" : [
+                        "installType" : installType,
+	                   	"deviceId" : device.value.deviceId,
+						"plugId": device.value.plugId,
+                        "appServerUrl" : device.value.appServerUrl,
+                        "deviceIP" : device.value.deviceIP,
+                        "gatewayIP" : bridgeIp
                     ]
-                )
+                ]
+            )
 			log.info "Installed TP-Link $deviceModel with alias ${device.value.alias}"
-			}
-		} catch (e) {
-			log.debug "Error Adding ${deviceModel}: ${e}"
 		}
 	}
-    state.installed = true
 }
 
 def removeDevicesPage() {
@@ -532,16 +526,10 @@ def kasaAuthenticationPage() {
 			if (state.currentError != null) {
 				paragraph "Error! Exit program and try again after resolving problem. ${state.currentError}!"
 			} 
-            if (state.installed == false) {
- 				href "addDevicesPage", 
-                    title: "Install Devices to Continue!", 
-                    description: "Go to Install Devices"
-            } else if (state.installed == "true") {
-                state.updateType = "KasaTokenUpdate"
-                href "updateData", 
-                    title: "Select to update Kasa Token.", 
-                    description: "Update Kasa Token"
-            }
+            state.updateType = "KasaTokenUpdate"
+            href "updateData", 
+                 title: "Select to update Kasa Token.", 
+                 description: "Update Kasa Token"
 		}
 	}
 }
@@ -584,6 +572,7 @@ def getToken() {
 			sendEvent(name: "TokenUpdate", value: state.currentError)
 		}
 	}
+	welcomePage()
 }
 
 def kasaGetDevices() {
@@ -648,19 +637,11 @@ def hubEnterIpPage() {
 	def page1Text = ""
 	def page2Text = ""
 	def page3Text = ""
-    if (state.installed == false) {
-		page1Text += "If possible, open the Envoroment and seletc Logs. Then, "
-		page1Text += "enter the static IP address for your Node Applet gateway."
-		page2Text += "After entering all the IP, select 'Install Devices to Continue'.  "
-		page2Text += "This will call the Add Devices page."
-		page3Text += "You must select and add a device to install the application!"
-    } else {
-		page1Text += "You can upate the Node Applet gateway IP using this page."
-		page2Text += "1.  Enter the new IP address in the box below.  "
-		page3Text += "2.  Select 'Update Node Applet Gateway IP' area.  This will "
-		page3Text += "update the gateway IP in all installed Kasa devices and ."
-		page3Text += "return to the Main Page."
-    }
+	page1Text += "You can upate the Node Applet gateway IP using this page."
+	page2Text += "1.  Enter the new IP address in the box below.  "
+	page3Text += "2.  Select 'Update Node Applet Gateway IP' area.  This will "
+	page3Text += "update the gateway IP in all installed Kasa devices and ."
+	page3Text += "return to the Main Page."
 
     return dynamicPage (name: "hubEnterIpPage", 
                         title: "Set Gateway IP",
@@ -688,16 +669,10 @@ def hubEnterIpPage() {
                    required: true,
                    multiple: false,
                    submitOnChange: true)
-            if (state.installed == false) {
-				href "addDevicesPage", 
-                    title: "Install Devices to Continue!", 
-                    description: "Go to Install Devices"
-            } else if (state.installed == true) {
-                state.updateType = "hubIpUpdate"
-                href "updateData", 
-                    title: "Select to update Gateway IP.", 
-                    description: "Update Node Applet Gateway IP"
-            }
+            state.updateType = "hubIpUpdate"
+             href "updateData", 
+                  title: "Select to update Gateway IP.", 
+                  description: "Update Node Applet Gateway IP"
 		}
 	}
 }
@@ -726,23 +701,8 @@ def hubExtractDeviceData(response) {
     }
 	state.devices = [:]
 	currentDevices.each {
-	    def plugId = ""
 	    def appServerUrl = ""
-		def deviceModel = it.deviceModel.substring(0,5)
-		if (deviceModel == "HS107" || deviceModel == "HS300") {
-			def totalPlugs = 2
-			if (deviceModel == "HS300") {
-				totalPlugs = 6
-			}
-			for (int i = 0; i < totalPlugs; i++) {
-				def deviceNetworkId = "${it.deviceMac}_0${i}"
-				def alias = "temp_0${i}"		//	Temporary Device Alias
-				plugId = "${it.deviceId}0${i}"
-                updateDevices(deviceNetworkId, alias, deviceModel, plugId, it.deviceId, appServerUrl, it.deviceIP)
-			}
-		} else {
-            updateDevices(it.deviceMac, it.alias, deviceModel, plugId, it.deviceId, appServerUrl, it.deviceIP)
-		}
+        updateDevices(it.deviceMac, it.alias, it.deviceModel, it.plugId, it.deviceId, appServerUrl, it.deviceIP)
 	}
 }
 
@@ -843,9 +803,10 @@ def initialize() {
 	if (installType == "Kasa Account"){
 		schedule("0 30 2 ? * WED", getToken)
 		runEvery5Minutes(checkError)
-    }
-    if (installType == "Node Applet") { runEvery5Minutes(hubGetDevices) }
-	if (selectedDevices) { updateData() }
+	} else { 
+		runEvery5Minutes(hubGetDevices) 
+	}
+	updateData()
 }
 
 def uninstalled() {

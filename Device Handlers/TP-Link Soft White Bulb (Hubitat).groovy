@@ -33,7 +33,7 @@ TP-Link devices; primarily various users on GitHub.com.
 			c.	Change scale of Transition Time to match
 				the Device page definition.
 //	===== Device Type Identifier ===========================*/
-	def driverVer() { return "3.5" }
+	def driverVer() { return "3.5.02" }
 	def deviceType() { return "Soft White Bulb" }
 //	def deviceType() { return "Tunable White Bulb" }
 //	def deviceType() { return "Color Bulb" }
@@ -67,8 +67,10 @@ metadata {
 	        input ("hue_Scale", "enum", title: "High or Low Res Hue", options: hueScale)
         }
         input ("transition_Time", "num", title: "Default Transition time (seconds)")
-		input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
-		input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
+		if (getDataValue("installType") != "Kasa Account")  {
+			input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
+			input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
+		}
 	}
 }
 

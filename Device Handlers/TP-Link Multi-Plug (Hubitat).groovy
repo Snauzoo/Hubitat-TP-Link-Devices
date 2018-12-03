@@ -30,7 +30,7 @@ TP-Link devices; primarily various users on GitHub.com.
 				output paradigm.
 11.24.2018	Created Multi-Plug Device Handler.
 //	===== Device Type Identifier ===========================*/
-	def driverVer() { return "3.5" }
+	def driverVer() { return "3.5.02" }
 	def deviceType() { return "Multi-Plug" }
 //	==========================================================
 

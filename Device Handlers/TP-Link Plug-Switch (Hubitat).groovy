@@ -26,10 +26,11 @@ TP-Link devices; primarily various users on GitHub.com.
 			a.  Single Drivers for manual Hub Installation, 
 				automated Hub Installation, and for Kasa
 				Account based installation.
-           b.	Update to match the Hubitat Driver input - 
+            b.	Update to match the Hubitat Driver input - 
 				output paradigm.
+12.02.18	Updated to hide IP preferences for Kasa Acct.
 //	===== Device Type Identifier ===========================*/
-	def driverVer() { return "3.5" }
+	def driverVer() { return "3.5.02" }
 	def deviceType() { return "Plug-Switch" }
 //	def deviceType() { return "Dimming Switch" }	
 //	==========================================================
@@ -46,9 +47,11 @@ metadata {
 		}
 	}
 
-    preferences {
-		input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
-		input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
+	if (getDataValue("installType") != "Kasa Account")  {
+	    preferences {
+			input ("device_IP", "text", title: "Device IP (Hub Only, NNN.NNN.N.NNN)")
+			input ("gateway_IP", "text", title: "Gateway IP (Hub Only, NNN.NNN.N.NNN)")
+		}
 	}
 }
 

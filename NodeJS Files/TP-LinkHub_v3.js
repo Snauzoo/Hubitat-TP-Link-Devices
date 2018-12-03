@@ -42,7 +42,7 @@ var tplinkDeviceList = []
 
 //---- Start the HTTP Server Listening to Smart Hub --------------
 server.listen(hubPort)
-console.log("TP-Link Hub Application Console Log V3.0.2")
+console.log("TP-Link Hub Application Console Log V3.0.3")
 logResponse("\n\r" + new Date() + "\rTP-Link Hub Error Log")
 
 //---- Command interface to Smart Things ---------------------------
@@ -95,20 +95,43 @@ function discoverTPLinkDevices() {
 		socket.close()
 	}.bind())
 	socket.on('message', function (msg, rinfo) {
-		var tplinkDevice = {}
 		var device = JSON.parse(decrypt(msg).toString('ascii')).system.get_sysinfo
+		var plugs = JSON.parse(decrypt(msg).toString('ascii')).system.get_sysinfo.children
+		var model = device.model.substring(0,5)
+		var tplinkDNI
+		var plugId = ""
 		if (device.mic_type == "IOT.SMARTBULB") {
 			tplinkDNI = device.mic_mac
 		} else {
 			tplinkDNI = device.mac.replace(/:/g, "")
 		}
-		tplinkDevice['deviceMac'] = tplinkDNI
-		tplinkDevice['deviceIP'] = rinfo.address
-		tplinkDevice['deviceModel'] = device.model
-		tplinkDevice['deviceId'] = device.deviceId
-		tplinkDevice['alias'] = device.alias
-		tplinkDevice['gatewayIP'] = bridgeIP
-		tplinkDeviceList.push(tplinkDevice)
+		if (model == "HS107" || model == "HS300") {
+			var totalPlugs = 2
+			if (model == "HS300") {
+				totalPlugs = 6
+			}
+			for (var i = 0; i < totalPlugs; i++) {
+				var tplinkDevice = {}
+				var plug = plugs[i]
+				tplinkDevice['deviceMac'] = tplinkDNI + "_" + plug.id
+				tplinkDevice['deviceIP'] = rinfo.address
+				tplinkDevice['deviceModel'] = model
+				tplinkDevice['deviceId'] = device.deviceId
+				tplinkDevice['alias'] = plug.alias
+				tplinkDevice['plugId'] = device.deviceId + "0" + i
+				tplinkDeviceList.push(tplinkDevice)
+			}
+		} else {
+			var tplinkDevice = {}
+			tplinkDevice['deviceMac'] = tplinkDNI
+			tplinkDevice['deviceIP'] = rinfo.address
+			tplinkDevice['deviceModel'] = model
+			tplinkDevice['deviceId'] = device.deviceId
+			tplinkDevice['alias'] = device.alias
+			tplinkDevice['plugId'] = plugId
+			tplinkDeviceList.push(tplinkDevice)
+		}
+//	END TEST TO CAPTURE CHILD INFO
 	}.bind())
 	socket.bind(bridgePort, bridgeIP, () => {
 		socket.setBroadcast(true)
@@ -142,14 +165,22 @@ function processDeviceCommand(request, response) {
 	socket.on('data', (data) => {
 		socket.end()
 		data = decrypt(data.slice(4)).toString('ascii')
-		response.setHeader("cmd-response", data)
-		response.end()
+		try {
+			response.setHeader("cmd-response", data)
+			response.end()
+		} catch (e) {
+			console.log("Response not sent due to error.  Will not impact operations")
+		}
 		var respMsg = "Command Response sent to Smart Hub"
 		console.log(respMsg)
 	}).on('timeout', () => {
-		response.setHeader("cmd-response", "TcpTimeout")
-		response.end()
-		socket.end()
+		try {
+			response.setHeader("cmd-response", "TcpTimeout")
+			response.end()
+			socket.end()
+		} catch (e) {
+			console.log("TCP Timeout Response.  Will not impact operations")
+		}
 		var respMsg = new Date() + "\n#### TCP Timeout in deviceCommand for IP: " + deviceIP + " ,command: " + command
 		console.log(respMsg)
 		logResponse(respMsg)
@@ -184,6 +215,7 @@ function processEmeterCommand(request, response) {
 			data = decrypt(concatData.slice(4)).toString('ascii')
 			response.setHeader("cmd-response", data)
 			response.end()
+			console.log("Response not sent due to error.  Will not impact operations")
 			var respMsg = "Command Response sent to Smart Hub"
 			console.log(respMsg)
 		} else {
